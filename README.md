@@ -182,3 +182,5 @@ Database: create a hosted PostgreSQL, then from `server/` run `npm run db:deploy
 Backend (Render, manual Web Service): Root Directory `server`, Build `npm ci && npx prisma generate && npx prisma migrate deploy`, Start `npm start`, Health Check `/api/health`, env `NODE_VERSION=20.18.0`, `NODE_ENV=production`, `DATABASE_URL`, `CLIENT_URL=https://<your-vercel-app>.vercel.app`.
 
 Frontend (Vercel): project root `client`, env `VITE_API_URL=https://<your-render-service>.onrender.com/api`.
+
+> **Note:** The API is hosted on Render's free tier, which spins down after inactivity — the first request may take ~40 seconds to respond while the service wakes up. Subsequent requests are fast.
