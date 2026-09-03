@@ -1,4 +1,4 @@
-# Cartyy — product EMI comparison
+# Cartyy 
 
 Cartyy is a full-stack product catalogue for comparing phone variants and their database-backed EMI plans. Every variant owns six distinct plans: five no-cost options and one longer interest-bearing option. The interface makes monthly payment, cashback, total payable, and effective cost visible before a user proceeds.
 
