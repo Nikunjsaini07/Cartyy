@@ -1,82 +1,28 @@
 # Cartyy 
 
-Cartyy is a full-stack product catalogue for comparing phone variants and their database-backed EMI plans. Every variant owns six distinct plans: five no-cost options and one longer interest-bearing option. The interface makes monthly payment, cashback, total payable, and effective cost visible before a user proceeds.
+Full-stack catalogue for comparing phone variants and their database-backed EMI plans. Each variant has six plans (five at 0% interest, one at 10.5%) with monthly amount, cashback, total payable and effective cost.
 
 ## Tech stack
 
-- **Frontend:** React 19, JavaScript, Vite, React Router, TanStack Query and CSS
-- **Backend:** Node.js, Express 5 and JavaScript
-- **Database:** PostgreSQL 17
+- **Frontend:** React 19, Vite 7, React Router 7, TanStack Query 5, Tailwind CSS 4
+- **Backend:** Node.js 20+, Express 5, JavaScript (ESM)
+- **Database:** PostgreSQL 15+ (Neon or Render hosted)
 - **ORM:** Prisma 6
-- **Deployment:** Vercel (frontend), Render (API), Neon or Render PostgreSQL
+- **Deployment:** Vercel (frontend), Render (API)
 
-## Features
+## Setup and run
 
-- Six seeded phones with manufacturer-confirmed finishes and two storage choices
-- Unique product URLs such as `/products/iphone-17-pro`
-- Variant-specific pricing, inventory, images, savings and EMI plans
-- Official manufacturer image URLs stored in PostgreSQL rather than frontend constants
-- Six EMI options per variant, including five at 0% interest
-- Plan-specific cashback, total payable and effective cost
-- Responsive catalogue and product pages
-- Loading, empty, error, not-found and confirmation states
-- Keyboard-visible focus states and reduced-motion support
-- PostgreSQL health endpoint
-
-## Project structure
-
-```text
-.
-├── client/                 React application
-│   ├── src/components/     Shared interface components
-│   ├── src/pages/          Catalogue and product routes
-│   └── src/lib/            API client and formatting utilities
-└── server/                 Express API
-    ├── prisma/             Schema, migrations and seed data
-    └── src/                Routes, configuration and database client
-```
-
-## Database schema
-
-```text
-Product 1 ─────── * ProductVariant 1 ─────── * EmiPlan
-```
-
-### Product
-
-Stores the shared name, slug, brand, description and highlights.
-
-### ProductVariant
-
-Stores SKU, colour, storage, finish, MRP, selling price, image URL, inventory and the default selection. Each variant belongs to one product.
-
-### EmiPlan
-
-Stores tenure, monthly amount, interest rate, cashback, total payable, effective cost, no-cost status and recommendation status. Each EMI plan belongs to exactly one variant. The database prevents duplicate tenures on the same variant.
-
-## Local setup
-
-### Prerequisites
-
-- Node.js 20 or newer
-- PostgreSQL 15 or newer
-- npm 10 or newer
-
-### 1. Install dependencies
-
-No root workspace. Install each app separately:
+Prerequisites: Node.js 20+, PostgreSQL 15+, npm 10+.
 
 ```bash
-cd server
-npm ci
-cd ../client
-npm ci
+# 1. Install (no root workspace — each app separately)
+cd server && npm ci
+cd ../client && npm ci
+
+# 2. Configure
+cp server/.env.example server/.env
+cp client/.env.example client/.env
 ```
-
-### 2. Configure the API
-
-Copy `server/.env.example` to `server/.env` and update the PostgreSQL connection string.
-Copy `client/.env.example` to `client/.env` for local frontend config.
 
 ```env
 # server/.env
@@ -90,56 +36,21 @@ CLIENT_URL=http://localhost:5173
 VITE_API_URL=http://localhost:4000/api
 ```
 
-`*.env` is gitignored. Only `*.env.example` is committed.
-
-### 3. Create and seed the database
-
-Create a PostgreSQL database named `cartyy_store`, then run from `server/`:
-
 ```bash
+# 3. Create and seed the database
 cd server
 npm run db:generate
 npm run db:migrate -- --name init
 npm run db:seed
+
+# 4. Run (two terminals)
+cd server && npm run dev   # API on http://localhost:4000
+cd client && npm run dev   # frontend on http://localhost:5173
 ```
-
-The seed creates 6 products, 34 colour/storage variants and 204 EMI plans.
-
-### 4. Start both applications
-
-Run in two terminals:
-
-```bash
-# terminal 1 - API on http://localhost:4000
-cd server
-npm run dev
-
-# terminal 2 - frontend on http://localhost:5173
-cd client
-npm run dev
-```
-
-## Scripts
-
-Run from the listed folder (`server/` or `client/`).
-
-| Command | Run from | Purpose |
-| ------- | -------- | ------- |
-| `npm run dev` | `server/` | Start Express with watch |
-| `npm run dev` | `client/` | Start Vite dev server |
-| `npm run start` | `server/` | Start Express (production) |
-| `npm run build` | `client/` | Build frontend for Vercel |
-| `npm run check` | `server/`, `client/` | Syntax-check project JavaScript |
-| `npm run db:generate` | `server/` | Generate the Prisma client |
-| `npm run db:migrate -- --name <name>` | `server/` | Create and apply a migration (local only) |
-| `npm run db:deploy` | `server/` | Apply committed migrations to hosted DB |
-| `npm run db:seed` | `server/` | Reset and seed catalogue data (run once per DB) |
 
 ## API endpoints
 
 ### `GET /api/health`
-
-Checks that the API can reach PostgreSQL.
 
 ```json
 {
@@ -150,7 +61,7 @@ Checks that the API can reach PostgreSQL.
 
 ### `GET /api/products`
 
-Returns every product with its variants and related EMI plans.
+Every product with variants and EMI plans.
 
 ```json
 {
@@ -187,83 +98,87 @@ Returns every product with its variants and related EMI plans.
 
 ### `GET /api/products/:slug`
 
-Returns one product and all related variants and plans. Returns `404` when the slug is unknown.
+One product, e.g. `/api/products/iphone-17-pro`. Same product shape as above. Unknown slug returns `404 { "error": { "message": "Product not found" } }`.
 
-```text
-GET /api/products/iphone-17-pro
+## Schema
+
+`server/prisma/schema.prisma`. Relations: `Product 1 — * ProductVariant 1 — * EmiPlan`.
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          String           @id @default(cuid())
+  name        String
+  slug        String           @unique
+  brand       String
+  category    String           @default("Smartphones")
+  description String
+  highlights  String[]
+  isFeatured  Boolean          @default(false)
+  variants    ProductVariant[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([brand])
+}
+
+model ProductVariant {
+  id           String    @id @default(cuid())
+  productId    String
+  sku          String    @unique
+  color        String
+  colorHex     String
+  storage      String
+  finish       String?
+  mrp          Decimal   @db.Decimal(12, 2)
+  sellingPrice Decimal   @db.Decimal(12, 2)
+  imageUrl     String
+  stock        Int       @default(0)
+  isDefault    Boolean   @default(false)
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  emiPlans     EmiPlan[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([productId])
+}
+
+model EmiPlan {
+  id             String         @id @default(cuid())
+  variantId      String
+  tenureMonths   Int
+  monthlyAmount  Decimal        @db.Decimal(12, 2)
+  interestRate   Decimal        @db.Decimal(5, 2)
+  cashbackAmount Decimal        @default(0) @db.Decimal(12, 2)
+  totalPayable   Decimal        @db.Decimal(12, 2)
+  effectiveCost  Decimal        @db.Decimal(12, 2)
+  isNoCost       Boolean        @default(false)
+  isRecommended  Boolean        @default(false)
+  variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([variantId, tenureMonths])
+  @@index([variantId])
+}
 ```
 
-## Pricing definitions
+Seed: 6 products, 34 variants, 204 EMI plans (`server/prisma/seed.js`).
 
-```text
-Instant savings = MRP - selling price
-Total payable   = monthly amount × tenure
-Effective cost  = total payable - cashback
-```
-
-Cashback is intentionally not subtracted from the displayed monthly payment because it is a later benefit, not an upfront EMI reduction.
+Pricing: `savings = MRP − selling price`, `total payable = monthly × tenure`, `effective cost = total payable − cashback`.
 
 ## Deployment
 
-### Database
+Database: create a hosted PostgreSQL, then from `server/` run `npm run db:deploy` and `npm run db:seed` once.
 
-1. Create a PostgreSQL database on Neon, Render or another provider.
-2. Set `DATABASE_URL` in the backend environment.
-3. From `server/` run once against that database:
+Backend (Render, manual Web Service): Root Directory `server`, Build `npm ci && npx prisma generate && npx prisma migrate deploy`, Start `npm start`, Health Check `/api/health`, env `NODE_VERSION=20.18.0`, `NODE_ENV=production`, `DATABASE_URL`, `CLIENT_URL=https://<your-vercel-app>.vercel.app`.
 
-```bash
-npm run db:deploy
-npm run db:seed
-```
-
-Do not run `db:seed` on every deploy — it resets the managed products.
-
-### Backend on Render (manual Web Service, no render.yaml)
-
-Create **New → Web Service** manually:
-
-- **Root Directory:** `server`
-- **Build Command:** `npm ci && npx prisma generate && npx prisma migrate deploy`
-- **Start Command:** `npm start`
-- **Health Check Path:** `/api/health`
-- **Environment:**
-  ```env
-  NODE_VERSION=20.18.0
-  NODE_ENV=production
-  DATABASE_URL=postgresql://<hosted-db-url>
-  CLIENT_URL=https://<your-vercel-app>.vercel.app
-  ```
-
-`PORT` is provided by Render and picked up automatically.
-
-### Frontend on Vercel
-
-Use `client` as the project root and set:
-
-```env
-VITE_API_URL=https://your-render-service.onrender.com/api
-```
-
-The included `client/vercel.json` preserves React Router URLs during refreshes.
-
-## Demo video checklist
-
-For the required 2–5 minute recording:
-
-1. Show the catalogue and open two different product URLs.
-2. Switch variants and point out that prices and EMI plans change.
-3. Compare a 0% plan with the 10.5% plan.
-4. Show cashback, total payable and effective cost.
-5. Complete the plan-confirmation interaction.
-6. Show the Express routes and Prisma schema.
-7. Open PostgreSQL and show the product, variant and EMI-plan records.
-8. Finish with the deployed link and GitHub repository.
-
-## Assignment deliverables
-
-- [ ] Public GitHub repository
-- [ ] Public deployed frontend
-- [ ] Deployed backend connected to PostgreSQL
-- [ ] README with setup, endpoints, stack and schema
-- [ ] 2–5 minute public demo video
-- [ ] Submission form completed
+Frontend (Vercel): project root `client`, env `VITE_API_URL=https://<your-render-service>.onrender.com/api`.
