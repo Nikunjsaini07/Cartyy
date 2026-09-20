@@ -2,6 +2,8 @@
 
 Full-stack catalogue for comparing phone variants and their database-backed EMI plans. Each variant has six plans (five at 0% interest, one at 10.5%) with monthly amount, cashback, total payable and effective cost.
 
+I built Cartyy as part of a software development assignment provided by a startup.
+
 ## Tech stack
 
 - **Frontend:** React 19, Vite 7, React Router 7, TanStack Query 5, Tailwind CSS 4
